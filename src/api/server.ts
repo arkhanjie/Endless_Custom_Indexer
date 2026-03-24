@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import pool from '../db/index';
+import { analyzeOnChainActivity } from '../ai/analyzer';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -135,6 +136,18 @@ app.get('/api/stats/timeline', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// AI on-chain activity analysis (rule-based, no external API)
+app.get('/api/analyze', async (req, res) => {
+  try {
+    const windowHours = Math.min(168, Math.max(1, parseInt(req.query.window as string) || 24));
+    const result = await analyzeOnChainActivity(windowHours);
+    res.json(result);
+  } catch (error) {
+    console.error('Analysis error:', error);
+    res.status(500).json({ error: 'Analysis failed' });
   }
 });
 
