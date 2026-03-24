@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import pool from '../db/index';
 
 const app = express();
@@ -7,6 +8,9 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve the dashboard UI
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // Get indexer status
 app.get('/api/status', async (req, res) => {
@@ -95,6 +99,38 @@ app.get('/api/events', async (req, res) => {
     }
 
     const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get distinct event types with counts
+app.get('/api/events/types', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT type, COUNT(*) as count FROM events GROUP BY type ORDER BY count DESC LIMIT 50'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get transaction volume over last 24h grouped by hour
+app.get('/api/stats/timeline', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        date_trunc('hour', timestamp) as hour,
+        COUNT(*) as count
+      FROM transactions 
+      WHERE timestamp > NOW() - INTERVAL '24 hours'
+      GROUP BY hour
+      ORDER BY hour ASC
+    `);
     res.json(result.rows);
   } catch (error) {
     console.error(error);
